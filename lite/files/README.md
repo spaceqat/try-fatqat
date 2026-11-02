@@ -17,8 +17,7 @@ so it can take a minute; later visits reuse the browser cache.
   notebook kernel. For a new notebook, run `import fatqat as fq` and then
   `fq.simulator.set_default_runtime("numpy")` before creating simulators. Existing
   instances and explicit runtime arguments are unchanged.
-- Tutorials are checked in a browser before publication. Those that fail or
-  take longer than five minutes on the build machine are left out. Your device
+- The selected tutorials typically finish within a few minutes. Your device
   may be slower. NumPy and Numba results can differ in rounding and sampling.
 - Everything runs in a single thread; leave the parallel execution options
   at their defaults.

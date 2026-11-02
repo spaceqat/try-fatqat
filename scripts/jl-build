@@ -3,5 +3,5 @@
 jupyter lite build \
     --XeusAddon.environment_file=try-fatqat-env.pinned.yaml \
     --lite-dir lite \
-    --output-dir "${JUPYTERLITE_OUTPUT_DIR:-_output}" \
+    --output-dir _output \
     "$@"

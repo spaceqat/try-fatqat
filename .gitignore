@@ -4,8 +4,4 @@ lite/files/tutorials/
 lite/try-fatqat-env.pinned.yaml
 lite/.cache/
 __pycache__/
-node_modules/
 .venv/
-_validated/
-tutorial-manifest.json
-browser-report.json

@@ -2,5 +2,5 @@
 
 jupyter lite serve \
     --lite-dir lite \
-    --output-dir "${JUPYTERLITE_OUTPUT_DIR:-_output}" \
+    --output-dir _output \
     "$@"
