@@ -3,7 +3,7 @@
 - Pin fatqat in the in-browser environment to the release, writing
   lite/try-fatqat-env.pinned.yaml for scripts/jl-build.
 - Check that the environment provides every dependency of the release.
-- Render the release's tutorials that run without numba into
+- Render the release's tutorials with a NumPy startup cell into
   lite/files/tutorials/<category>/.
 
 The latest release is the newest final release on PyPI, or the newest
@@ -15,7 +15,8 @@ Usage: python scripts/sync_fatqat.py
 
 from __future__ import annotations
 
-import ast
+import argparse
+import hashlib
 import io
 import json
 import os
@@ -39,8 +40,11 @@ TUTORIALS = ROOT / "lite" / "files" / "tutorials"
 # every simulator uses runtime="numpy" and execution stays in one process.
 BROWSER_EXCLUDED = {"numba", "loky"}
 
-# Public FatQat classes whose constructor takes ``runtime``, default "numba".
-SIMULATORS = {"Simulator", "AtomArraySimulator", "SCQubitSimulator"}
+MANIFEST = ROOT / "tutorial-manifest.json"
+NUMPY_STARTUP = """import fatqat as fq
+if not hasattr(fq, "set_default_runtime"):
+    raise RuntimeError("This site requires a FatQat release with set_default_runtime support.")
+fq.set_default_runtime("numpy")"""
 
 
 def _get_json(url: str) -> dict:
@@ -87,37 +91,6 @@ def pin_environment(version: str) -> None:
     PINNED_ENV_FILE.write_text(pinned)
 
 
-def _runs_on_numba(call: ast.Call) -> bool:
-    func = call.func
-    name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
-    if name not in SIMULATORS:
-        return False
-    runtime = next((kw.value for kw in call.keywords if kw.arg == "runtime"), None)
-    return not (isinstance(runtime, ast.Constant) and runtime.value == "numpy")
-
-
-def uses_numba(code: str) -> bool:
-    """Return whether ``code`` imports numba or creates a simulator that runs on it.
-
-    A simulator runs on numba unless its call passes ``runtime="numpy"``
-    literally, so calls that leave the runtime to ``**kwargs`` or a variable
-    count as numba.
-    """
-
-    for node in ast.walk(ast.parse(code)):
-        if isinstance(node, ast.Call) and _runs_on_numba(node):
-            return True
-        if isinstance(node, ast.Import) and any(
-            alias.name.split(".")[0] == "numba" for alias in node.names
-        ):
-            return True
-        if isinstance(node, ast.ImportFrom) and (
-            (node.module or "").split(".")[0] == "numba"
-        ):
-            return True
-    return False
-
-
 def download_source(version: str, directory: str) -> Path:
     url = f"https://github.com/spaceqat/fatqat/archive/refs/tags/v{version}.tar.gz"
     with urllib.request.urlopen(url, timeout=120) as response:
@@ -135,10 +108,7 @@ def render_tutorials(source: Path, version: str) -> None:
     sys.path.insert(0, str(source / "docs" / "mkdocs" / "tools"))
     import build_tutorials
 
-    tutorials, skipped = [], []
-    for tutorial in build_tutorials.discover_tutorials():
-        needs_numba = any(uses_numba(code) for code in tutorial.code_cells)
-        (skipped if needs_numba else tutorials).append(tutorial)
+    tutorials = build_tutorials.discover_tutorials()
     order = list(build_tutorials.GALLERY.get("category_order", []))
     categories = sorted(
         {tutorial.category for tutorial in tutorials},
@@ -149,31 +119,125 @@ def render_tutorials(source: Path, version: str) -> None:
     )
 
     shutil.rmtree(TUTORIALS, ignore_errors=True)
-    index = [
-        "# FatQat tutorials",
-        "",
-        f"The FatQat {version} tutorials that run without numba. Find all of them "
-        "in the [FatQat documentation](https://fatqat.readthedocs.io/en/stable/tutorials/).",
-        "",
-    ]
+    manifest = {"version": version, "categories": [], "tutorials": []}
     for category in categories:
         title, description = build_tutorials._category_label(category)
-        index += [f"## {title}", "", description, ""]
+        manifest["categories"].append(
+            {"name": category, "title": title, "description": description}
+        )
         for tutorial in (item for item in tutorials if item.category == category):
             path = TUTORIALS / category / f"{tutorial.slug}.ipynb"
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(build_tutorials._render_notebook(tutorial), encoding="utf-8")
-            index.append(
-                f"- [{tutorial.source.title}]({category}/{tutorial.slug}.ipynb): "
-                f"{tutorial.source.description}"
+            notebook = nbformat.reads(
+                build_tutorials._render_notebook(tutorial), as_version=4
+            )
+            notebook.cells.insert(
+                0, nbformat.v4.new_code_cell(NUMPY_STARTUP, id="browser-runtime")
+            )
+            nbformat.write(notebook, path)
+            manifest["tutorials"].append(
+                {
+                    "slug": tutorial.slug,
+                    "category": category,
+                    "title": tutorial.source.title,
+                    "description": tutorial.source.description,
+                    "path": path.relative_to(ROOT).as_posix(),
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                }
             )
             print(f"Added {path.relative_to(ROOT)}")
+    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    write_index(manifest, manifest["tutorials"])
+
+
+def write_index(manifest: dict, tutorials: list[dict]) -> None:
+    index = [
+        "# FatQat tutorials",
+        "",
+        f"From FatQat {manifest['version']}. The first cell selects NumPy for this kernel.",
+        "These notebooks are checked in a browser with a five-minute execution limit "
+        "per tutorial. Your device may take longer. Find the full collection in the "
+        "[FatQat documentation](https://fatqat.readthedocs.io/en/stable/tutorials/).",
+        "",
+    ]
+    for category in manifest["categories"]:
+        members = [t for t in tutorials if t["category"] == category["name"]]
+        if not members:
+            continue
+        index += [f"## {category['title']}", "", category["description"], ""]
+        for item in members:
+            index.append(
+                f"- [{item['title']}]({item['category']}/{item['slug']}.ipynb): {item['description']}"
+            )
         index.append("")
     (TUTORIALS / "README.md").write_text("\n".join(index), encoding="utf-8")
-    for tutorial in skipped:
-        print(f"Skipped {tutorial.category}/{tutorial.slug}: uses numba")
+
+
+def apply_report(report_path: Path) -> None:
+    """Keep only successful, unchanged notebooks from a complete browser run."""
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    if (
+        report.get("version") != manifest["version"]
+        or report.get("timeout_seconds") != 300
+    ):
+        raise ValueError(
+            "browser report does not match this build or its five-minute limit"
+        )
+    results = report["tutorials"]
+    if len(results) != len(manifest["tutorials"]) or len(
+        {r["slug"] for r in results}
+    ) != len(results):
+        raise ValueError("browser report is incomplete or has duplicate tutorials")
+    by_slug = {r["slug"]: r for r in results}
+    accepted, rejected = [], []
+    for item in manifest["tutorials"]:
+        result = by_slug.get(item["slug"], {})
+        path = ROOT / item["path"]
+        if (
+            result.get("sha256") != item["sha256"]
+            or hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]
+        ):
+            raise ValueError(f"stale browser report for {item['slug']}")
+        if (
+            result.get("status") == "pass"
+            and 0 <= result.get("seconds", float("inf")) <= 300
+        ):
+            accepted.append(item)
+        else:
+            rejected.append(item)
+    if not accepted:
+        raise ValueError("no tutorials passed; refusing to deploy an empty gallery")
+    # Rebuild into a fresh directory even when running the workflow locally twice.
+    validated = ROOT / "_validated"
+    if validated.is_symlink() or validated.resolve() != ROOT.resolve() / "_validated":
+        raise ValueError("validated output must stay inside this checkout")
+    if validated.exists():
+        shutil.rmtree(validated)
+    for item in rejected:
+        (ROOT / item["path"]).unlink()
+        print(f"Excluded {item['slug']}: {by_slug[item['slug']]['status']}")
+    write_index(manifest, accepted)
+    print(f"Included {len(accepted)} of {len(results)} tutorials")
+
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source", type=Path, help="Render a local FatQat checkout for development"
+    )
+    parser.add_argument(
+        "--apply-report",
+        type=Path,
+        help="Filter generated notebooks using browser results",
+    )
+    args = parser.parse_args()
+    if args.apply_report:
+        apply_report(args.apply_report)
+        return 0
+    if args.source:
+        render_tutorials(args.source.resolve(), "local-development")
+        return 0
     version = os.environ.get("FATQAT_VERSION") or latest_release()
     print(f"Preparing FatQat {version}")
     check_dependencies(version)

@@ -14,11 +14,20 @@ computation runs in the visitor's browser. Performance is not a goal.
 - numba has no WebAssembly build, so `jupyterlite-xeus` installs FatQat with
   pip's `--no-deps`, and the remaining dependencies (NumPy, SciPy, Matplotlib,
   QuTiP) come from emscripten-forge. See `lite/try-fatqat-env.yaml`.
-- FatQat simulators default to `runtime="numba"`, which is unavailable here,
-  so the site offers only the tutorials that run without numba: every
-  `Simulator`, `AtomArraySimulator`, and `SCQubitSimulator` they create passes
-  `runtime="numpy"`, and none imports numba. The site is for trying FatQat;
-  the documentation has every tutorial.
+- Each generated tutorial starts with `fq.set_default_runtime("numpy")`.
+  This selects NumPy for subsequent simulators in that notebook kernel;
+  explicit runtime arguments remain unchanged. In a new notebook, run
+  `import fatqat as fq; fq.set_default_runtime("numpy")` before creating simulators.
+- Every build executes all tutorial code cells in fresh Chromium/WebAssembly
+  kernels. Only complete, successful runs within five minutes are published.
+  Shots and iteration counts are not reduced. Explicit Numba requirements,
+  unsupported dependencies, errors, and slow tutorials are filtered by execution.
+  The documentation retains the full collection. Timings depend on the device;
+  this check is a publishing threshold, not a guarantee for every browser.
+
+The FatQat release must provide `set_default_runtime`. The browser preflight
+fails the build if it does not; publish the FatQat API change before enabling
+this workflow against a release. A failed build leaves the deployed site intact.
 
 ## Staying in step with FatQat
 
@@ -28,7 +37,7 @@ final release. Set `FATQAT_VERSION` to build another release.
 
 - It pins `fatqat` to that release in `lite/try-fatqat-env.pinned.yaml`, the
   environment file `scripts/jl-build` uses.
-- It renders the release's numba-free tutorials from its git tag into
+- It renders the release's tutorials from its git tag into
   `lite/files/tutorials/<category>/`, following the category folders of the
   FatQat documentation, and writes an index grouped the same way. Notebooks and
   the installed package therefore always come from the same release.
@@ -40,13 +49,38 @@ failed build leaves the last deployed site in place.
 
 ## Build locally
 
+Install Node.js 22 or newer in addition to the conda build environment.
+
 ```bash
 conda env create -f environment.yml
 conda activate try-fatqat-build
 python scripts/sync_fatqat.py   # pin FatQat and render its tutorials
 ./scripts/jl-build              # build the site into _output
-./scripts/jl-serve              # serve it at http://localhost:8000
+npm ci
+npx playwright install chromium
+npm run test:browser            # complete runs, at most five minutes each
+python scripts/sync_fatqat.py --apply-report browser-report.json
+JUPYTERLITE_OUTPUT_DIR=_validated ./scripts/jl-build
+JUPYTERLITE_OUTPUT_DIR=_validated ./scripts/jl-serve
 ```
+
+The second build uses a fresh output directory so rejected notebooks cannot
+remain in the published files or contents index. `browser-report.json` records
+the browser version, environment, notebook hashes, times, and failures; CI saves
+it with the candidate manifest as an artifact. Kernel startup has a separate
+two-minute deadline. Tutorial timing includes the NumPy setup cell, imports,
+execution, and plot delivery, after kernel startup. Each timeout closes its
+browser context and terminates the worker before continuing.
+
+For an unpublished FatQat change, render with
+`python scripts/sync_fatqat.py --source /path/to/fatqat`. Build a test environment
+with that same local package (jupyterlite-xeus supports local pip paths), or set
+`TUTORIAL_SITE_DIR` to an existing build and `FATQAT_SOURCE_ZIP` to a zip containing
+the modified `fatqat/` package at its root. The latter overlays only FatQat in
+each fresh test kernel; the report records the archive hash. These development
+options do not change the normal release deployment.
+
+Run `python -m unittest discover -s tests` for the manifest/filter checks.
 
 ## Deployment
 
