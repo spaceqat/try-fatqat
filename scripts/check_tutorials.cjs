@@ -86,7 +86,7 @@ async function main() {
       const page = await smokeContext.newPage();
       await withTimeout(prepare(page, url), 120000);
       const result = await withTimeout(execute(page,
-        "import sys, fatqat as fq\nassert hasattr(fq, 'set_default_runtime'), 'Release FatQat with set_default_runtime before deploying this site'\nfq.set_default_runtime('numpy')\nassert fq.get_default_runtime() == 'numpy'\nprint(sys.version, fq.__version__)\nprint(fq.simulator.Simulator().run(fq.Program(1)).result().metadata['runtime'])"), 60000);
+        "import sys, fatqat as fq\nassert hasattr(fq.simulator, 'set_default_runtime'), 'Release FatQat with set_default_runtime before deploying this site'\nfq.simulator.set_default_runtime('numpy')\nassert fq.simulator.get_default_runtime() == 'numpy'\nprint(sys.version, fq.__version__)\nprint(fq.simulator.Simulator().run(fq.Program(1)).result().metadata['runtime'])"), 60000);
       if (result.status !== 'ok') throw new Error('Kernel preflight failed: ' + JSON.stringify(result));
       report.environment = result.messages;
       console.log('PREFLIGHT', JSON.stringify(result));

@@ -13,9 +13,9 @@ so it can take a minute; later visits reuse the browser cache.
 
 ## Differences from a local installation
 
-- The first tutorial cell sets `fq.set_default_runtime("numpy")` for that
+- The first tutorial cell sets `fq.simulator.set_default_runtime("numpy")` for that
   notebook kernel. For a new notebook, run `import fatqat as fq` and then
-  `fq.set_default_runtime("numpy")` before creating simulators. Existing
+  `fq.simulator.set_default_runtime("numpy")` before creating simulators. Existing
   instances and explicit runtime arguments are unchanged.
 - Tutorials are checked in a browser before publication. Those that fail or
   take longer than five minutes on the build machine are left out. Your device

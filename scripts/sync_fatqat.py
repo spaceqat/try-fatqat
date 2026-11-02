@@ -42,9 +42,9 @@ BROWSER_EXCLUDED = {"numba", "loky"}
 
 MANIFEST = ROOT / "tutorial-manifest.json"
 NUMPY_STARTUP = """import fatqat as fq
-if not hasattr(fq, "set_default_runtime"):
+if not hasattr(fq.simulator, "set_default_runtime"):
     raise RuntimeError("This site requires a FatQat release with set_default_runtime support.")
-fq.set_default_runtime("numpy")"""
+fq.simulator.set_default_runtime("numpy")"""
 
 
 def _get_json(url: str) -> dict:

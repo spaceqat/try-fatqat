@@ -14,10 +14,10 @@ computation runs in the visitor's browser. Performance is not a goal.
 - numba has no WebAssembly build, so `jupyterlite-xeus` installs FatQat with
   pip's `--no-deps`, and the remaining dependencies (NumPy, SciPy, Matplotlib,
   QuTiP) come from emscripten-forge. See `lite/try-fatqat-env.yaml`.
-- Each generated tutorial starts with `fq.set_default_runtime("numpy")`.
+- Each generated tutorial starts with `fq.simulator.set_default_runtime("numpy")`.
   This selects NumPy for subsequent simulators in that notebook kernel;
   explicit runtime arguments remain unchanged. In a new notebook, run
-  `import fatqat as fq; fq.set_default_runtime("numpy")` before creating simulators.
+  `import fatqat as fq; fq.simulator.set_default_runtime("numpy")` before creating simulators.
 - Every build executes all tutorial code cells in fresh Chromium/WebAssembly
   kernels. Only complete, successful runs within five minutes are published.
   Shots and iteration counts are not reduced. Explicit Numba requirements,
