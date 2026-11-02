@@ -5,3 +5,5 @@ lite/try-fatqat-env.pinned.yaml
 lite/.cache/
 __pycache__/
 .venv/
+
+node_modules/

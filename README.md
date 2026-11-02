@@ -18,8 +18,8 @@ computation runs in the visitor's browser. Performance is not a goal.
   This selects NumPy for subsequent simulators in that notebook kernel;
   explicit runtime arguments remain unchanged. In a new notebook, run
   `import fatqat as fq; fq.simulator.set_default_runtime("numpy")` before creating simulators.
-- The site includes selected tutorials checked locally in a browser with a
-  five-minute budget per notebook. Runtime varies by device.
+- The site includes tutorials that complete during a browser check at build time,
+  with a five-minute limit per notebook. Runtime varies by device.
 
 ## Staying in step with FatQat
 
@@ -29,7 +29,7 @@ final release. Set `FATQAT_VERSION` to build another release.
 
 - It pins `fatqat` to that release in `lite/try-fatqat-env.pinned.yaml`, the
   environment file `scripts/jl-build` uses.
-- It renders the selected tutorials from the release's git tag into
+- It renders all tutorials from the release's git tag into
   `lite/files/tutorials/<category>/`, following the category folders of the
   FatQat documentation, and writes an index grouped the same way. Notebooks and
   the installed package therefore always come from the same release.
@@ -46,6 +46,9 @@ conda env create -f environment.yml
 conda activate try-fatqat-build
 python scripts/sync_fatqat.py
 ./scripts/jl-build
+npm install --no-save --package-lock=false playwright@1.62.1
+npx playwright install chromium
+node scripts/check_tutorials.cjs
 ./scripts/jl-serve
 ```
 
@@ -54,11 +57,9 @@ To render tutorials from a local FatQat checkout, use
 
 ## Select tutorials
 
-`BROWSER_TUTORIALS` in `scripts/sync_fatqat.py` lists the included tutorials.
-Before adding one, run all its cells in the browser with the original shots
-and iteration counts, and check that it finishes within five minutes.
-Recheck the selection when tutorial code changes. Deployment builds the
-selected notebooks without executing them.
+Each build runs every tutorial in a fresh browser kernel. Only notebooks that
+finish successfully within five minutes are published. New tutorials are
+included automatically when they pass this check.
 
 ## Deployment
 

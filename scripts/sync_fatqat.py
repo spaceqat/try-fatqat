@@ -3,7 +3,7 @@
 - Pin fatqat in the in-browser environment to the release, writing
   lite/try-fatqat-env.pinned.yaml for scripts/jl-build.
 - Check that the environment provides every dependency of the release.
-- Render selected tutorials with a NumPy startup cell into
+- Render tutorials with a NumPy startup cell into
   lite/files/tutorials/<category>/.
 
 The latest release is the newest final release on PyPI, or the newest
@@ -39,23 +39,6 @@ TUTORIALS = ROOT / "lite" / "files" / "tutorials"
 # every simulator uses runtime="numpy" and execution stays in one process.
 BROWSER_EXCLUDED = {"numba", "loky"}
 
-# Tutorials checked locally in the browser with a five-minute budget.
-# Add new tutorials only after running their complete notebooks.
-BROWSER_TUTORIALS = {
-    "atom-array-ghz8",
-    "qutrit-assisted-toffoli",
-    "surface-code-memory",
-    "antiferromagnetic-chain",
-    "pxp-z2-revival",
-    "vqe-h2",
-    "islanding-model",
-    "islanding-qaoa",
-    "qubo-qaoa",
-    "qnn-digits",
-    "quantum-admet",
-    "optimal-cz-control",
-    "pulse-calibration",
-}
 NUMPY_STARTUP = """import fatqat as fq
 fq.simulator.set_default_runtime("numpy")"""
 
@@ -121,11 +104,7 @@ def render_tutorials(source: Path, version: str) -> None:
     sys.path.insert(0, str(source / "docs" / "mkdocs" / "tools"))
     import build_tutorials
 
-    tutorials = [
-        tutorial
-        for tutorial in build_tutorials.discover_tutorials()
-        if tutorial.slug in BROWSER_TUTORIALS
-    ]
+    tutorials = build_tutorials.discover_tutorials()
     order = list(build_tutorials.GALLERY.get("category_order", []))
     categories = sorted(
         {tutorial.category for tutorial in tutorials},
