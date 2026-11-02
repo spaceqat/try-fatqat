@@ -25,10 +25,6 @@ computation runs in the visitor's browser. Performance is not a goal.
   The documentation retains the full collection. Timings depend on the device;
   this check is a publishing threshold, not a guarantee for every browser.
 
-The FatQat release must provide `set_default_runtime`. The browser preflight
-fails the build if it does not; publish the FatQat API change before enabling
-this workflow against a release. A failed build leaves the deployed site intact.
-
 ## Staying in step with FatQat
 
 `scripts/sync_fatqat.py` prepares each build from the latest FatQat release:
