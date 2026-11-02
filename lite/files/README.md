@@ -13,9 +13,12 @@ so it can take a minute; later visits reuse the browser cache.
 
 ## Differences from a local installation
 
-- Simulators need `runtime="numpy"`. The default `runtime="numba"` needs a
-  just-in-time compiler that cannot run in the browser, so tutorials that use
-  it are left out. Results are the same with NumPy; large programs are slower.
+- The first tutorial cell sets `fq.simulator.set_default_runtime("numpy")` for that
+  notebook kernel. For a new notebook, run `import fatqat as fq` and then
+  `fq.simulator.set_default_runtime("numpy")` before creating simulators. Existing
+  instances and explicit runtime arguments are unchanged.
+- The selected tutorials typically finish within a few minutes. Your device
+  may be slower. NumPy and Numba results can differ in rounding and sampling.
 - Everything runs in a single thread; leave the parallel execution options
   at their defaults.
 - Files you create or edit are kept only in this browser. Use **Download** in
