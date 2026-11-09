@@ -48,6 +48,19 @@ python scripts/sync_fatqat.py   # pin FatQat and render its tutorials
 ./scripts/jl-serve              # serve it at http://localhost:8000
 ```
 
+## Notebook appearance
+
+All notebooks share `lite/brand/fatqat.css`, with SpaceQat's navy/cyan palette
+and its original black/lime logo (`spaceqat-logo.png`, copied unchanged from
+[the SpaceQat site](https://github.com/spaceqat/spaceqat.github.io/tree/main/assets)).
+Only prose has a reading-width limit; native cell spacing and controls remain.
+`lite/overrides.json` supplies font sizes and Notebook's full-width setting.
+
+The build ends with `scripts/style_site.py`, which copies the brand folder and
+links the stylesheet from Jupyter's generated app pages. Refresh an existing
+build with `python scripts/style_site.py --output-dir _output`. Navigation uses
+JupyterLite's standard entry points; no custom redirect or runtime JavaScript.
+
 ## Deployment
 
 `.github/workflows/build_github_pages.yaml` builds the site on every push and
