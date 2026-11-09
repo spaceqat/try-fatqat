@@ -1,7 +1,11 @@
 #!/bin/bash
 
+set -e
+
 jupyter lite build \
     --XeusAddon.environment_file=try-fatqat-env.pinned.yaml \
     --lite-dir lite \
     --output-dir _output \
     "$@"
+
+python scripts/style_site.py --output-dir _output "$@"

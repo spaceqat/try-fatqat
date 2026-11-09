@@ -1,0 +1,59 @@
+/* Shared notebook styling. Keep Jupyter's cell geometry and state indicators. */
+body[data-jp-theme-light='true'] {
+  --fq-title-color: #102a35;
+  --jp-brand-color0: #102a35;
+  --jp-brand-color1: #166f79;
+  --jp-brand-color2: #a0ecee;
+  --jp-brand-color3: #e5f1f2;
+  --jp-layout-color0: #ffffff;
+  --jp-layout-color1: #ffffff;
+  --jp-layout-color2: #f3f6f8;
+  --jp-layout-color3: #dde7eb;
+  --jp-border-color1: #cddadd;
+  --jp-cell-editor-background: #f3f6f8;
+  --jp-cell-editor-border-color: #cddadd;
+  --jp-cell-editor-active-background: #ffffff;
+  --jp-content-font-color1: #102a35;
+  --jp-ui-font-color1: #102a35;
+}
+
+/* Limit prose line length, never code cells, tables, or output areas. */
+.jp-Notebook .jp-MarkdownOutput > :is(p, ul, ol, blockquote) {
+  max-width: 76ch;
+}
+
+.jp-Notebook .jp-MarkdownOutput h1 {
+  font-size: 28px;
+  line-height: 1.25;
+}
+
+.jp-Notebook .jp-MarkdownOutput h2 {
+  font-size: 21px;
+  line-height: 1.3;
+}
+
+/* SpaceQat's navy/cyan palette and original black/lime mark.
+   Source: https://github.com/spaceqat/spaceqat.github.io/tree/main/assets
+   Use the existing Jupyter logo slots; no runtime script or custom extension. */
+#jp-NotebookLogo, #jp-MainLogo, .fq-brand {
+  display: inline-flex;
+  min-width: 112px;
+  width: auto;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  color: var(--fq-title-color, #a0ecee);
+  font: 600 18px/1 'Segoe UI', system-ui, sans-serif;
+  text-decoration: none;
+  border-bottom: 2px solid #a0ecee;
+}
+#jp-NotebookLogo > *, #jp-MainLogo > * { display: none; }
+:is(#jp-NotebookLogo, #jp-MainLogo, .fq-brand)::before {
+  content: '';
+  flex-shrink: 0;
+  width: 28px;
+  height: 24px;
+  background: white url('spaceqat-logo.png') center / contain no-repeat;
+}
+:is(#jp-NotebookLogo, #jp-MainLogo, .fq-brand)::after { content: 'FatQat'; }
