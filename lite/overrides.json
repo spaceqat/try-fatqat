@@ -15,5 +15,17 @@
     "defaultViewers": {
       "markdown": "Markdown Preview"
     }
+  },
+  "@jupyterlab/apputils-extension:themes": {
+    "theme": "JupyterLab Light",
+    "overrides": {
+      "content-font-size1": "15px",
+      "code-font-size": "14px",
+      "content-font-family": "'Segoe UI', system-ui, sans-serif",
+      "ui-font-family": "'Segoe UI', system-ui, sans-serif"
+    }
+  },
+  "@jupyter-notebook/notebook-extension:full-width-notebook": {
+    "fullWidthNotebook": true
   }
 }
