@@ -3,7 +3,7 @@
 - Pin fatqat in the in-browser environment to the release, writing
   lite/try-fatqat-env.pinned.yaml for scripts/jl-build.
 - Check that the environment provides every dependency of the release.
-- Render the release's tutorials that run without numba into
+- Render tutorials with a NumPy startup cell into
   lite/files/tutorials/<category>/.
 
 The latest release is the newest final release on PyPI, or the newest
@@ -15,7 +15,7 @@ Usage: python scripts/sync_fatqat.py
 
 from __future__ import annotations
 
-import ast
+import argparse
 import io
 import json
 import os
@@ -39,8 +39,8 @@ TUTORIALS = ROOT / "lite" / "files" / "tutorials"
 # every simulator uses runtime="numpy" and execution stays in one process.
 BROWSER_EXCLUDED = {"numba", "loky"}
 
-# Public FatQat classes whose constructor takes ``runtime``, default "numba".
-SIMULATORS = {"Simulator", "AtomArraySimulator", "SCQubitSimulator"}
+NUMPY_STARTUP = """import fatqat as fq
+fq.simulator.set_default_runtime("numpy")"""
 
 
 def _get_json(url: str) -> dict:
@@ -87,37 +87,6 @@ def pin_environment(version: str) -> None:
     PINNED_ENV_FILE.write_text(pinned)
 
 
-def _runs_on_numba(call: ast.Call) -> bool:
-    func = call.func
-    name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
-    if name not in SIMULATORS:
-        return False
-    runtime = next((kw.value for kw in call.keywords if kw.arg == "runtime"), None)
-    return not (isinstance(runtime, ast.Constant) and runtime.value == "numpy")
-
-
-def uses_numba(code: str) -> bool:
-    """Return whether ``code`` imports numba or creates a simulator that runs on it.
-
-    A simulator runs on numba unless its call passes ``runtime="numpy"``
-    literally, so calls that leave the runtime to ``**kwargs`` or a variable
-    count as numba.
-    """
-
-    for node in ast.walk(ast.parse(code)):
-        if isinstance(node, ast.Call) and _runs_on_numba(node):
-            return True
-        if isinstance(node, ast.Import) and any(
-            alias.name.split(".")[0] == "numba" for alias in node.names
-        ):
-            return True
-        if isinstance(node, ast.ImportFrom) and (
-            (node.module or "").split(".")[0] == "numba"
-        ):
-            return True
-    return False
-
-
 def download_source(version: str, directory: str) -> Path:
     url = f"https://github.com/spaceqat/fatqat/archive/refs/tags/v{version}.tar.gz"
     with urllib.request.urlopen(url, timeout=120) as response:
@@ -135,10 +104,7 @@ def render_tutorials(source: Path, version: str) -> None:
     sys.path.insert(0, str(source / "docs" / "mkdocs" / "tools"))
     import build_tutorials
 
-    tutorials, skipped = [], []
-    for tutorial in build_tutorials.discover_tutorials():
-        needs_numba = any(uses_numba(code) for code in tutorial.code_cells)
-        (skipped if needs_numba else tutorials).append(tutorial)
+    tutorials = build_tutorials.discover_tutorials()
     order = list(build_tutorials.GALLERY.get("category_order", []))
     categories = sorted(
         {tutorial.category for tutorial in tutorials},
@@ -149,11 +115,13 @@ def render_tutorials(source: Path, version: str) -> None:
     )
 
     shutil.rmtree(TUTORIALS, ignore_errors=True)
+    TUTORIALS.mkdir(parents=True, exist_ok=True)
     index = [
         "# FatQat tutorials",
         "",
-        f"The FatQat {version} tutorials that run without numba. Find all of them "
-        "in the [FatQat documentation](https://fatqat.readthedocs.io/en/stable/tutorials/).",
+        f"Selected tutorials from FatQat {version}. Run all cells from the top; "
+        "the first cell selects NumPy. Find the full collection in the "
+        "[FatQat documentation](https://fatqat.readthedocs.io/en/stable/tutorials/).",
         "",
     ]
     for category in categories:
@@ -162,7 +130,13 @@ def render_tutorials(source: Path, version: str) -> None:
         for tutorial in (item for item in tutorials if item.category == category):
             path = TUTORIALS / category / f"{tutorial.slug}.ipynb"
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(build_tutorials._render_notebook(tutorial), encoding="utf-8")
+            notebook = nbformat.reads(
+                build_tutorials._render_notebook(tutorial), as_version=4
+            )
+            notebook.cells.insert(
+                0, nbformat.v4.new_code_cell(NUMPY_STARTUP, id="browser-runtime")
+            )
+            nbformat.write(notebook, path)
             index.append(
                 f"- [{tutorial.source.title}]({category}/{tutorial.slug}.ipynb): "
                 f"{tutorial.source.description}"
@@ -170,10 +144,17 @@ def render_tutorials(source: Path, version: str) -> None:
             print(f"Added {path.relative_to(ROOT)}")
         index.append("")
     (TUTORIALS / "README.md").write_text("\n".join(index), encoding="utf-8")
-    for tutorial in skipped:
-        print(f"Skipped {tutorial.category}/{tutorial.slug}: uses numba")
+
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source", type=Path, help="Render a local FatQat checkout for development"
+    )
+    args = parser.parse_args()
+    if args.source:
+        render_tutorials(args.source.resolve(), "local-development")
+        return 0
     version = os.environ.get("FATQAT_VERSION") or latest_release()
     print(f"Preparing FatQat {version}")
     check_dependencies(version)
